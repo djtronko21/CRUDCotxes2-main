@@ -1,0 +1,233 @@
+/* ===============================
+   ESTILO GLOBAL - CRUD HORARIS
+   =============================== */
+
+:root {
+  --color-fons: #f3f4f6;
+  --color-text: #333;
+  --color-principal: #007bff;
+  --color-principal-hover: #0056b3;
+  --color-exit: #dc3545;
+  --color-exit-hover: #a71d2a;
+  --color-success: #28a745;
+  --color-success-hover: #1e7e34;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+  background-color: var(--color-fons);
+  color: var(--color-text);
+  margin: 0;
+  padding: 20px;
+}
+
+/* ===============================
+   CABECERAS Y CONTENEDORES
+   =============================== */
+
+h1, h2, h3 {
+  text-align: center;
+  color: var(--color-text);
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ===============================
+   FORMULARIOS
+   =============================== */
+
+form {
+  background: white;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* ===============================
+   BOTONES
+   =============================== */
+
+button,
+a.boto {
+  display: inline-block;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+button {
+  background-color: var(--color-principal);
+}
+
+button:hover {
+  background-color: var(--color-principal-hover);
+}
+
+a.boto {
+  background-color: var(--color-principal);
+}
+
+a.boto:hover {
+  background-color: var(--color-principal-hover);
+}
+
+a.success {
+  background-color: var(--color-success);
+}
+
+a.success:hover {
+  background-color: var(--color-success-hover);
+}
+
+a.danger {
+  background-color: var(--color-exit);
+}
+
+a.danger:hover {
+  background-color: var(--color-exit-hover);
+}
+
+/* ===============================
+   TABLAS
+   =============================== */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 15px;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background-color: var(--color-principal);
+  color: white;
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+tr.meu {
+  background: #e9f9e9;
+}
+
+/* ===============================
+   MENÚ PRINCIPAL
+   =============================== */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.menu a {
+  width: 100%;
+  text-align: center;
+  background: var(--color-principal);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  text-decoration: none;
+}
+
+.menu a:hover {
+  background: var(--color-principal-hover);
+}
+
+.menu .logout {
+  background: var(--color-exit);
+}
+
+.menu .logout:hover {
+  background: var(--color-exit-hover);
+}
+
+/* ===============================
+   ENLACES SECUNDARIOS
+   =============================== */
+
+a.link {
+  color: var(--color-principal);
+  text-decoration: none;
+}
+
+a.link:hover {
+  text-decoration: underline;
+}
+
+/* ===============================
+   OTROS
+   =============================== */
+
+.error {
+  color: red;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.success-msg {
+  color: var(--color-success);
+  text-align: center;
+}
+
+.center {
+  text-align: center;
+}
+
+.mt-2 { margin-top: 10px; }
+.mt-3 { margin-top: 20px; }
+.mt-4 { margin-top: 30px; }
