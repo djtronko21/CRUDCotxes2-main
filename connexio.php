@@ -3,9 +3,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$servername = "localhost";
-$username = "root";
-$password = "";
+$servername = "hl1529.dinaserver.com";
+$username = "polgu_";
+$password = "BNqot747$3{.";
 $database = "empresacotxes"; // ✅ nombre correcto
 
 $conn = new mysqli($servername, $username, $password, $database);

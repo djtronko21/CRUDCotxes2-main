@@ -8,58 +8,53 @@ if (!isset($_SESSION['usuari_id'])) {
 }
 
 $idUsuari = $_SESSION['usuari_id'];
+$error = null;
+$success = null;
 
-// Rutes disponibles
+// Obtenir rutes
 $rutes = $conn->query("SELECT id, origen, desti FROM rutes ORDER BY origen");
 
-// Cotxes de l'usuari
-$cotxes = $conn->prepare("SELECT id, marca, model, matricula, imatge FROM cotxes WHERE usuari_id = ?");
+// Obtenir cotxes de l'usuari
+$cotxes = $conn->prepare("SELECT id, marca, model, matricula FROM cotxes WHERE usuari_id = ? ORDER BY marca");
 $cotxes->bind_param("i", $idUsuari);
 $cotxes->execute();
 $cotxesResult = $cotxes->get_result();
 
-$error = null;
-
-// Si s'envia el formulari
+// Procesar formulari
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $ruta_id = isset($_POST['ruta_id']) ? intval($_POST['ruta_id']) : 0;
-    $cotxe_raw = $_POST['cotxe_id'] ?? '';
-    $cotxe_id = ($cotxe_raw === '' ? null : intval($cotxe_raw));
-    $data = trim($_POST['data'] ?? '');
-    $hora_inici = trim($_POST['hora_inici'] ?? '');
-    $hora_fi = trim($_POST['hora_fi'] ?? '');
+    $rutaId = intval($_POST['ruta_id'] ?? 0);
+    $cotxeId = intval($_POST['cotxe_id'] ?? 0);
+    $data = $_POST['data'] ?? '';
+    $horaInici = $_POST['hora_inici'] ?? '';
+    $horaFi = $_POST['hora_fi'] ?? '';
+    $places = intval($_POST['places'] ?? 0);
+    $preu = floatval($_POST['preu'] ?? 0);
     $comentaris = trim($_POST['comentaris'] ?? '');
 
     // Validacions
-    if ($ruta_id <= 0) {
-        $error = "Selecciona una ruta vàlida.";
-    } elseif (!\DateTime::createFromFormat('Y-m-d', $data)) {
-        $error = "Data invàlida.";
-    } elseif (!\DateTime::createFromFormat('H:i', $hora_inici)) {
-        $error = "Hora d'inici invàlida.";
-    } elseif ($hora_fi !== '' && !\DateTime::createFromFormat('H:i', $hora_fi)) {
-        $error = "Hora fi invàlida.";
-    }
-
-    if ($error === null) {
-        if ($cotxe_id === null) {
-            $sql = "INSERT INTO horaris (usuari_id, ruta_id, data, hora_inici, hora_fi, comentaris)
-                    VALUES (?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iissss", $idUsuari, $ruta_id, $data, $hora_inici, $hora_fi, $comentaris);
-        } else {
-            $sql = "INSERT INTO horaris (usuari_id, ruta_id, cotxe_id, data, hora_inici, hora_fi, comentaris)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iiissss", $idUsuari, $ruta_id, $cotxe_id, $data, $hora_inici, $hora_fi, $comentaris);
-        }
-
+    if ($rutaId <= 0 || $cotxeId <= 0 || empty($data) || empty($horaInici) || $places <= 0 || $preu < 0) {
+        $error = "Completa tots els camps obligatoris correctament.";
+    } elseif (strtotime($data) < strtotime(date('Y-m-d'))) {
+        $error = "La data no pot ser anterior a avui.";
+    } elseif ($places > 8) {
+        $error = "El cotxe no pot tenir més de 8 places.";
+    } elseif (!empty($horaFi) && $horaFi <= $horaInici) {
+        $error = "L'hora de fi ha de ser posterior a l'hora d'inici.";
+    } else {
+        $stmt = $conn->prepare(
+            "INSERT INTO horaris (usuari_id, ruta_id, cotxe_id, data, hora_inici, hora_fi, places_totals, preu, comentaris) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param("iiisssids", $idUsuari, $rutaId, $cotxeId, $data, $horaInici, $horaFi, $places, $preu, $comentaris);
+        
         if ($stmt->execute()) {
-            header("Location: editar.php");
-            exit();
+            $success = "Horari afegit correctament!";
+            // Redirigir després de 2 segons
+            header("Refresh: 2; url=editar.php");
         } else {
-            $error = "Error al afegir l'horari.";
+            $error = "Error al afegir l'horari: " . $conn->error;
         }
+        $stmt->close();
     }
 }
 ?>
@@ -67,272 +62,137 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
-    <title>Afegir Horari</title>
-    <link rel="stylesheet" href="css/estilo.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afegir Horari — BlaBlaCash</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #e0ffff;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-
-        .main-header {
-            background: #333;
-            padding: 1rem;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            position: relative;
-        }
-
-        .logo {
-            margin-right: auto;
-        }
-
-        .logo a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.5rem;
-            font-weight: bold;
-            transition: color 0.3s;
-        }
-
-        .logo a:hover {
-            color: #4CAF50;
-        }
-
-        .menu-toggle {
-            display: block;
-            color: white;
-            cursor: pointer;
-            padding: 10px;
-            font-size: 1.1rem;
-            background: #4CAF50;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-            margin-left: 15px;
-        }
-
-        .menu-toggle:hover {
-            background: #45a049;
-        }
-
-        .main-nav {
-            position: relative;
-        }
-
-        .main-nav ul {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: #333;
-            min-width: 200px;
-            border-radius: 4px;
-            padding: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 1000;
-            margin: 0;
-            list-style: none;
-        }
-
-        .main-nav.active ul {
-            display: block;
-        }
-
-        .main-nav ul li {
-            display: block;
-            margin: 8px 0;
-        }
-
-        .main-nav ul li a {
-            display: block;
-            padding: 8px 15px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s;
-            border-radius: 4px;
-        }
-
-        .main-nav ul li a:hover {
-            background: #4CAF50;
-            transform: translateX(5px);
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            padding: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        .cotxe-img-preview {
-            display: block;
-            margin: 20px auto;
-            max-width: 300px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-
-        .error {
-            color: red;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .btn {
-            background: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }
-
-        .btn:hover {
-            background: #45a049;
-        }
+        :root { --primary: #4CAF50; --bg: #e0ffff; }
+        body { background: var(--bg); font-family: 'Segoe UI', system-ui; }
+        .navbar { background: #333; }
+        .form-section { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .form-title { color: #333; font-weight: 700; margin-bottom: 1.5rem; }
+        .form-group label { font-weight: 600; color: #555; margin-bottom: 0.5rem; }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
+        .btn-submit { background: var(--primary); color: #fff; font-weight: 600; }
+        .btn-submit:hover { background: #45a049; }
+        .error { color: #dc3545; background: #fff5f5; border-left: 4px solid #dc3545; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+        .success { color: #155724; background: #d4edda; border-left: 4px solid #28a745; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
-
-<header class="main-header">
-    <div class="logo">
-        <a href="principal.php">BlaBlaCash</a>
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="principal.php"><i class="fas fa-car-side me-2"></i>BlaBlaCash</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navMenu">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="principal.php"><i class="fas fa-home me-1"></i>Inici</a></li>
+                <li class="nav-item"><a class="nav-link" href="index.php"><i class="fas fa-search me-1"></i>Viatges</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i><?php echo htmlspecialchars($_SESSION['nom']); ?>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item active" href="afegir.php"><i class="fas fa-plus me-2"></i>Afegir horari</a></li>
+                        <li><a class="dropdown-item" href="editar.php"><i class="fas fa-edit me-2"></i>Editar horaris</a></li>
+                        <li><a class="dropdown-item" href="perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Tancar sessió</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </div>
-    <div class="menu-toggle" onclick="toggleMenu()">
-        ☰ Menú
+</nav>
+
+<div class="container my-4" style="max-width: 600px;">
+    <div class="form-section">
+        <h2 class="form-title"><i class="fas fa-calendar-plus me-2"></i>Afegir Nou Horari</h2>
+
+        <?php if ($error): ?>
+            <div class="error"><i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+            <div class="success"><i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?></div>
+        <?php endif; ?>
+
+        <form method="post" novalidate>
+            <div class="form-group mb-3">
+                <label for="ruta_id"><i class="fas fa-route me-1"></i>Ruta</label>
+                <select class="form-select" name="ruta_id" id="ruta_id" required>
+                    <option value="">Selecciona una ruta</option>
+                    <?php while ($ruta = $rutes->fetch_assoc()): ?>
+                        <option value="<?php echo $ruta['id']; ?>">
+                            <?php echo htmlspecialchars($ruta['origen'] . " → " . $ruta['desti']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="cotxe_id"><i class="fas fa-car me-1"></i>Cotxe</label>
+                <select class="form-select" name="cotxe_id" id="cotxe_id" required>
+                    <option value="">Selecciona un cotxe</option>
+                    <?php while ($cotxe = $cotxesResult->fetch_assoc()): ?>
+                        <option value="<?php echo $cotxe['id']; ?>">
+                            <?php echo htmlspecialchars($cotxe['marca'] . " " . $cotxe['model'] . " - " . $cotxe['matricula']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="data"><i class="far fa-calendar me-1"></i>Data</label>
+                        <input type="date" class="form-control" name="data" id="data" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="hora_inici"><i class="far fa-clock me-1"></i>Hora inici</label>
+                        <input type="time" class="form-control" name="hora_inici" id="hora_inici" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="hora_fi"><i class="far fa-clock me-1"></i>Hora fi (opcional)</label>
+                        <input type="time" class="form-control" name="hora_fi" id="hora_fi">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="places"><i class="fas fa-chair me-1"></i>Places disponibles</label>
+                        <input type="number" class="form-control" name="places" id="places" min="1" max="8" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="preu"><i class="fas fa-euro-sign me-1"></i>Preu per persona (€)</label>
+                <input type="number" step="0.01" min="0" class="form-control" name="preu" id="preu" required>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="comentaris"><i class="fas fa-comment me-1"></i>Comentaris (opcional)</label>
+                <textarea class="form-control" name="comentaris" id="comentaris" rows="3" placeholder="Afegeix detalls del viatge..."></textarea>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-submit"><i class="fas fa-save me-2"></i>Afegir Horari</button>
+                <a href="editar.php" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Tornar</a>
+            </div>
+        </form>
     </div>
-    <nav class="main-nav" id="mainNav">
-        <ul>
-            <li><a href="afegir.php">➕ Afegir Horari</a></li>
-            <li><a href="editar.php">📝 Editar Viatges</a></li>
-            <li><a href="perfil.php">👤 Perfil</a></li>
-            <li><a href="principal.php">🏠 Menú Principal</a></li>
-            <li><a href="logout.php">🚪 Tancar Sessió</a></li>
-        </ul>
-    </nav>
-</header>
-
-<div class="container">
-    <h1 style="text-align: center; margin-bottom: 30px;">➕ Afegir Nou Horari</h1>
-
-    <?php if ($error): ?>
-        <div class="error"><?php echo htmlspecialchars($error); ?></div>
-    <?php endif; ?>
-
-    <form method="post">
-        <div class="form-group">
-            <label for="ruta_id">Ruta:</label>
-            <select name="ruta_id" id="ruta_id" required>
-                <option value="">-- Selecciona una ruta --</option>
-                <?php while ($r = $rutes->fetch_assoc()): ?>
-                    <option value="<?php echo $r['id']; ?>">
-                        <?php echo htmlspecialchars($r['origen'] . " → " . $r['desti']); ?>
-                    </option>
-                <?php endwhile; ?>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="cotxe_id">Cotxe (opcional):</label>
-            <select name="cotxe_id" id="cotxe_id">
-                <option value="">-- Cap cotxe --</option>
-                <?php while ($c = $cotxesResult->fetch_assoc()): ?>
-                    <option value="<?php echo $c['id']; ?>" 
-                            data-img="<?php echo !empty($c['imatge']) ? 'uploads/' . htmlspecialchars($c['imatge']) : ''; ?>">
-                        <?php echo htmlspecialchars($c['marca'] . " " . $c['model'] . " (" . $c['matricula'] . ")"); ?>
-                    </option>
-                <?php endwhile; ?>
-            </select>
-            <img id="preview-img" class="cotxe-img-preview" style="display:none;" alt="Imatge del cotxe">
-        </div>
-
-        <div class="form-group">
-            <label for="data">Data:</label>
-            <input type="date" name="data" id="data" required>
-        </div>
-
-        <div class="form-group">
-            <label for="hora_inici">Hora Inici:</label>
-            <input type="time" name="hora_inici" id="hora_inici" required>
-        </div>
-
-        <div class="form-group">
-            <label for="hora_fi">Hora Fi:</label>
-            <input type="time" name="hora_fi" id="hora_fi">
-        </div>
-
-        <div class="form-group">
-            <label for="comentaris">Comentaris:</label>
-            <textarea name="comentaris" id="comentaris" rows="3"></textarea>
-        </div>
-
-        <button type="submit" class="btn">💾 Guardar</button>
-    </form>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.addEventListener('click', function(event) {
-        const nav = document.getElementById('mainNav');
-        const menuToggle = document.querySelector('.menu-toggle');
-        
-        if (!nav.contains(event.target) && !menuToggle.contains(event.target)) {
-            nav.classList.remove('active');
-        }
-    });
-});
-
-function toggleMenu() {
-    const nav = document.getElementById('mainNav');
-    nav.classList.toggle('active');
-}
-
-const select = document.getElementById('cotxe_id');
-const img = document.getElementById('preview-img');
-
-function updatePreview() {
-    const opt = select.selectedOptions[0];
-    if (!opt) {
-        img.style.display = 'none';
-        return;
-    }
-    const imgData = opt.getAttribute('data-img');
-    if (imgData) {
-        img.src = imgData;
-        img.style.display = 'block';
-    } else {
-        img.style.display = 'none';
-    }
-}
-
-select.addEventListener('change', updatePreview);
-updatePreview();
-</script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

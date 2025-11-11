@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once "connexio.php";
 
 if (!isset($_SESSION['usuari_id'])) {
@@ -7,219 +8,186 @@ if (!isset($_SESSION['usuari_id'])) {
 }
 
 $idUsuari = $_SESSION['usuari_id'];
+$error = null;
+$success = null;
 
-// Obtener datos personales
-$sqlUsuari = $conn->prepare("SELECT nom, correu, imatge_perfil FROM usuaris WHERE id = ?");
-$sqlUsuari->bind_param("i", $idUsuari);
-$sqlUsuari->execute();
-$dadesUsuari = $sqlUsuari->get_result()->fetch_assoc();
-
-// Procesar subida de imagen de perfil
-if (isset($_FILES['imatge']) && $_FILES['imatge']['error'] === UPLOAD_ERR_OK) {
-    $dir = "uploads/";
-    if (!is_dir($dir)) mkdir($dir);
-
-    $nomFitxer = "perfil_" . $idUsuari . "_" . time() . ".jpg";
-    move_uploaded_file($_FILES['imatge']['tmp_name'], $dir . $nomFitxer);
-
-    $update = $conn->prepare("UPDATE usuaris SET imatge_perfil = ? WHERE id = ?");
-    $update->bind_param("si", $nomFitxer, $idUsuari);
-    $update->execute();
-
-    header("Location: perfil.php");
-    exit();
-}
-
-// Afegir cotxe
-if (isset($_POST['accio']) && $_POST['accio'] === 'afegir_cotxe') {
-    $marca = $_POST['marca'];
-    $model = $_POST['model'];
-    $matricula = $_POST['matricula'];
-    $any = $_POST['any'];
-    $color = $_POST['color'];
-    $imatgeCotxe = null;
-
-    // Comprovar si la matrícula ja existeix
-    $checkMatricula = $conn->prepare("SELECT id FROM cotxes WHERE matricula = ? AND usuari_id = ?");
-    $checkMatricula->bind_param("si", $matricula, $idUsuari);
-    $checkMatricula->execute();
-    $result = $checkMatricula->get_result();
-
-    if ($result->num_rows > 0) {
-        // La matrícula ja existeix
-        $error = "La matrícula '$matricula' ja està registrada. Si us plau, introdueix una matrícula diferent.";
+// Eliminar horari
+if (isset($_GET['delete']) && isset($_GET['confirm']) && $_GET['confirm'] === 'yes') {
+    $horariId = intval($_GET['delete']);
+    $delete = $conn->prepare("DELETE FROM horaris WHERE id = ? AND usuari_id = ?");
+    $delete->bind_param("ii", $horariId, $idUsuari);
+    
+    if ($delete->execute()) {
+        $success = "Horari eliminat correctament!";
+        header("Refresh: 1; url=editar.php");
     } else {
-        if (!empty($_FILES['imatge_cotxe']['tmp_name'])) {
-            $dir = "uploads/";
-            if (!is_dir($dir)) mkdir($dir);
-            $nomCotxe = "cotxe_" . $idUsuari . "_" . time() . ".jpg";
-            move_uploaded_file($_FILES['imatge_cotxe']['tmp_name'], $dir . $nomCotxe);
-            $imatgeCotxe = $nomCotxe;
-        }
-
-        $stmt = $conn->prepare("INSERT INTO cotxes (usuari_id, marca, model, matricula, any, color, imatge) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("isssiss", $idUsuari, $marca, $model, $matricula, $any, $color, $imatgeCotxe);
-        $stmt->execute();
-        header("Location: perfil.php");
-        exit();
+        $error = "Error al eliminar l'horari.";
     }
 }
 
-// Actualitzar imatge de cotxe
-if (isset($_POST['accio']) && $_POST['accio'] === 'actualitzar_imatge') {
-    $idCotxe = $_POST['id_cotxe'];
-    if (!empty($_FILES['nova_imatge']['tmp_name'])) {
-        $dir = "uploads/";
-        if (!is_dir($dir)) mkdir($dir);
-        $nomNou = "cotxe_" . $idUsuari . "_" . time() . ".jpg";
-        move_uploaded_file($_FILES['nova_imatge']['tmp_name'], $dir . $nomNou);
-
-        $update = $conn->prepare("UPDATE cotxes SET imatge = ? WHERE id = ? AND usuari_id = ?");
-        $update->bind_param("sii", $nomNou, $idCotxe, $idUsuari);
-        $update->execute();
-    }
-    header("Location: perfil.php");
-    exit();
-}
-
-// Eliminar cotxe
-if (isset($_GET['delete_cotxe'])) {
-    $idCotxe = $_GET['delete_cotxe'];
-    $delete = $conn->prepare("DELETE FROM cotxes WHERE id = ? AND usuari_id = ?");
-    $delete->bind_param("ii", $idCotxe, $idUsuari);
-    $delete->execute();
-    header("Location: perfil.php");
-    exit();
-}
-
-// Obtenir cotxes
-$cotxes = $conn->prepare("SELECT * FROM cotxes WHERE usuari_id = ?");
-$cotxes->bind_param("i", $idUsuari);
-$cotxes->execute();
-$cotxesResult = $cotxes->get_result();
+// Obtenir horaris de l'usuari
+$horaris = $conn->prepare(
+    "SELECT 
+        h.id,
+        h.data,
+        h.hora_inici,
+        h.hora_fi,
+        h.places_totals,
+        h.preu,
+        h.comentaris,
+        r.origen,
+        r.desti,
+        c.marca,
+        c.model,
+        COALESCE((SELECT COUNT(*) FROM places_reservades WHERE horari_id = h.id), 0) AS places_ocupades
+    FROM horaris h
+    INNER JOIN rutes r ON h.ruta_id = r.id
+    LEFT JOIN cotxes c ON h.cotxe_id = c.id
+    WHERE h.usuari_id = ?
+    ORDER BY h.data DESC, h.hora_inici ASC"
+);
+$horaris->bind_param("i", $idUsuari);
+$horaris->execute();
+$horarisResult = $horaris->get_result();
 ?>
-
 <!DOCTYPE html>
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
-    <title>Perfil d'Usuari</title>
-    <link rel="stylesheet" href="css/estilo.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Els meus Horaris — BlaBlaCash</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #fafafa; }
-        .container {
-            width: 90%; max-width: 900px; margin: 30px auto;
-            background: white; padding: 2rem; border-radius: 15px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        :root { --primary: #4CAF50; --bg: #e0ffff; }
+        body { background: var(--bg); font-family: 'Segoe UI', system-ui; }
+        .navbar { background: #333; }
+        .header-card { background: linear-gradient(135deg, #4CAF50, #45a049); color: #fff; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; }
+        .horari-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--primary);
         }
-        .perfil-header { text-align: center; margin-bottom: 2rem; }
-        .perfil-header img {
-            width: 160px; height: 160px; border-radius: 50%;
-            object-fit: cover; border: 4px solid #3498db; margin-bottom: 10px;
-        }
-        .miniatura {
-            width: 120px; border-radius: 10px; cursor: pointer;
-            transition: transform 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        .miniatura:hover { transform: scale(1.05); }
-        .modal {
-            display: none; position: fixed; z-index: 100;
-            left: 0; top: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); justify-content: center; align-items: center;
-        }
-        .modal img { max-width: 90%; max-height: 90%; border-radius: 10px; }
+        .horari-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+        .horari-route { font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 1rem; }
+        .horari-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+        .info-item { display: flex; align-items: center; gap: 0.5rem; color: #666; font-size: 0.95rem; }
+        .horari-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .btn-edit { background: #0dcaf0; border: none; }
+        .btn-delete { background: #dc3545; border: none; }
+        .empty-state { text-align: center; padding: 3rem; }
+        .success { color: #155724; background: #d4edda; border-left: 4px solid #28a745; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+        .error { color: #dc3545; background: #fff5f5; border-left: 4px solid #dc3545; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1 class="center">👤 Perfil de <?php echo htmlspecialchars($dadesUsuari['nom']); ?></h1>
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="principal.php"><i class="fas fa-car-side me-2"></i>BlaBlaCash</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navMenu">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="principal.php"><i class="fas fa-home me-1"></i>Inici</a></li>
+                <li class="nav-item"><a class="nav-link" href="index.php"><i class="fas fa-search me-1"></i>Viatges</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i><?php echo htmlspecialchars($_SESSION['nom']); ?>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="afegir.php"><i class="fas fa-plus me-2"></i>Afegir horari</a></li>
+                        <li><a class="dropdown-item active" href="editar.php"><i class="fas fa-edit me-2"></i>Editar horaris</a></li>
+                        <li><a class="dropdown-item" href="perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Tancar sessió</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
 
-    <div class="center">
-        <a href="index.php" class="boto">⬅️ Tornar</a>
-        <a href="principal.php" class="boto">🏠 Menú</a>
-        <a href="logout.php" class="boto danger">🚪 Sortir</a>
+<div class="container my-4">
+    <div class="header-card">
+        <h1 class="mb-1"><i class="fas fa-calendar-check me-2"></i>Els meus Horaris</h1>
+        <p class="mb-0">Gestiona els teus horaris de viatges</p>
     </div>
 
-    <div class="perfil-header">
-        <img src="uploads/<?php echo htmlspecialchars($dadesUsuari['imatge_perfil']); ?>" alt="Perfil">
-        <form method="post" enctype="multipart/form-data">
-            <input type="file" name="imatge" accept="image/*" required>
-            <button type="submit" class="boto success">📷 Actualitzar Foto</button>
-        </form>
-    </div>
+    <?php if ($error): ?>
+        <div class="error"><i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
 
-    <div class="perfil-section">
-        <h3>📄 Informació Personal</h3>
-        <p><strong>Nom:</strong> <?php echo htmlspecialchars($dadesUsuari['nom']); ?></p>
-        <p><strong>Correu:</strong> <?php echo htmlspecialchars($dadesUsuari['correu']); ?></p>
-    </div>
+    <?php if ($success): ?>
+        <div class="success"><i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?></div>
+    <?php endif; ?>
 
-    <div class="perfil-section">
-        <h3>🚗 Els meus cotxes</h3>
-        <table>
-            <thead>
-            <tr>
-                <th>Marca</th>
-                <th>Model</th>
-                <th>Matricula</th>
-                <th>Any</th>
-                <th>Color</th>
-                <th>Imatge</th>
-                <th>Accions</th>
-            </tr>
-            </thead>
-            <tbody>
-            <?php while ($c = $cotxesResult->fetch_assoc()): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($c['marca']); ?></td>
-                    <td><?php echo htmlspecialchars($c['model']); ?></td>
-                    <td><?php echo htmlspecialchars($c['matricula']); ?></td>
-                    <td><?php echo htmlspecialchars($c['any']); ?></td>
-                    <td><?php echo htmlspecialchars($c['color']); ?></td>
-                    <td>
-                        <?php if (!empty($c['imatge'])): ?>
-                            <img src="uploads/<?php echo htmlspecialchars($c['imatge']); ?>" class="miniatura" onclick="mostrarImatge(this)">
-                            <form method="post" enctype="multipart/form-data" style="margin-top:5px;">
-                                <input type="hidden" name="accio" value="actualitzar_imatge">
-                                <input type="hidden" name="id_cotxe" value="<?php echo $c['id']; ?>">
-                                <input type="file" name="nova_imatge" accept="image/*" required>
-                                <button type="submit" class="boto success">🔄 Canviar</button>
-                            </form>
-                        <?php else: ?>
-                            <em>Sense imatge</em>
+    <?php if ($horarisResult->num_rows > 0): ?>
+        <div class="row">
+            <?php while ($h = $horarisResult->fetch_assoc()):
+                $placesDisponibles = $h['places_totals'] - $h['places_ocupades'];
+                $esPassat = strtotime($h['data']) < strtotime(date('Y-m-d'));
+            ?>
+                <div class="col-md-6">
+                    <div class="horari-card <?php echo $esPassat ? 'opacity-50' : ''; ?>">
+                        <div class="horari-route">
+                            <i class="fas fa-arrow-right" style="color: var(--primary);"></i>
+                            <?php echo htmlspecialchars($h['origen'] . " → " . $h['desti']); ?>
+                        </div>
+
+                        <div class="horari-info">
+                            <div class="info-item">
+                                <i class="far fa-calendar"></i>
+                                <span><?php echo date('d/m/Y', strtotime($h['data'])); ?></span>
+                            </div>
+                            <div class="info-item">
+                                <i class="far fa-clock"></i>
+                                <span><?php echo substr($h['hora_inici'], 0, 5); ?></span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-euro-sign"></i>
+                                <span><?php echo number_format($h['preu'], 2); ?> €</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-chair"></i>
+                                <span><?php echo $placesDisponibles . "/" . $h['places_totals']; ?> places</span>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($h['marca'])): ?>
+                            <p style="color: #666; margin: 0.5rem 0;"><i class="fas fa-car me-1"></i><?php echo htmlspecialchars($h['marca'] . " " . $h['model']); ?></p>
                         <?php endif; ?>
-                    </td>
-                    <td>
-                        <a href="?delete_cotxe=<?php echo $c['id']; ?>" class="boto danger" onclick="return confirm('Eliminar cotxe?')">🗑️ Eliminar</a>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-            </tbody>
-        </table>
 
-        <h4 style="margin-top:1rem;">➕ Afegir Nou Cotxe</h4>
-        <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="accio" value="afegir_cotxe">
-            <input type="text" name="marca" placeholder="Marca" required>
-            <input type="text" name="model" placeholder="Model" required>
-            <input type="text" name="matricula" placeholder="Matrícula" required>
-            <input type="number" name="any" placeholder="Any" min="1900" max="2025">
-            <input type="text" name="color" placeholder="Color">
-            <!-- ✅ Afegit: pujar imatge -->
-            <input type="file" name="imatge_cotxe" accept="image/*">
-            <button type="submit" class="boto success">💾 Afegir Cotxe</button>
-        </form>
-    </div>
+                        <?php if (!empty($h['comentaris'])): ?>
+                            <p style="color: #888; font-size: 0.9rem; margin: 0.5rem 0;"><i class="fas fa-comment me-1"></i><?php echo htmlspecialchars($h['comentaris']); ?></p>
+                        <?php endif; ?>
+
+                        <div class="horari-actions">
+                            <a href="editar_horari.php?id=<?php echo $h['id']; ?>" class="btn btn-edit btn-sm text-white" <?php echo $esPassat ? 'disabled' : ''; ?>>
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </a>
+                            <a href="editar.php?delete=<?php echo $h['id']; ?>&confirm=yes" class="btn btn-delete btn-sm text-white" onclick="return confirm('Segur que vols eliminar aquest horari?')">
+                                <i class="fas fa-trash me-1"></i>Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            <?php endwhile; ?>
+        </div>
+    <?php else: ?>
+        <div class="empty-state">
+            <i class="fas fa-inbox" style="font-size: 3rem; color: #999; margin-bottom: 1rem;"></i>
+            <h3>No tens horaris publicats</h3>
+            <p class="text-muted">Comença a compartir viatges ara!</p>
+            <a href="afegir.php" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Crear primer horari</a>
+        </div>
+    <?php endif; ?>
 </div>
 
-<script>
-function mostrarImatge(img) {
-    const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.innerHTML = `<img src="${img.src}" onclick="this.parentElement.remove()">`;
-    document.body.appendChild(modal);
-    modal.style.display = "flex";
-}
-</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
