@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'connexio.php';
+include __DIR__ . '/../BD/connexio.php';
 
 $error = null;
 $success = null;
@@ -29,7 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 if (password_verify($contrasenya, $usuari['contrasenya'])) {
                     $_SESSION['usuari_id'] = $usuari['id'];
                     $_SESSION['nom'] = $usuari['nom'];
-                    header("Location: principal.php");
+                    header("Location: ../Menu/principal.php");
                     exit;
                 } else {
                     $error = "Credencials incorrectes.";
@@ -45,6 +45,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3838550041681016"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inici de sessió — BlaBlaCash</title>

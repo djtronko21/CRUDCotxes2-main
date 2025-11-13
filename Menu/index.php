@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once "connexio.php";
+require_once __DIR__ . '/../BD/connexio.php';
 
 if (!isset($_SESSION['usuari_id'])) {
-    header("Location: login.php");
+    header("Location: ../LoginRegistre/login.php");
     exit();
 }
 
@@ -77,6 +77,8 @@ $resultat = $stmt->get_result();
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3838550041681016"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Viatges Disponibles — BlaBlaCash</title>
@@ -192,11 +194,11 @@ $resultat = $stmt->get_result();
                         <i class="fas fa-user-circle me-1"></i><?php echo htmlspecialchars($_SESSION['nom']); ?>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="afegir.php"><i class="fas fa-plus me-2"></i>Afegir horari</a></li>
-                        <li><a class="dropdown-item" href="editar.php"><i class="fas fa-edit me-2"></i>Editar horaris</a></li>
-                        <li><a class="dropdown-item" href="perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                        <li><a class="dropdown-item" href="../editar/afegir.php"><i class="fas fa-plus me-2"></i>Afegir horari</a></li>
+                        <li><a class="dropdown-item" href="../editar/editar.php"><i class="fas fa-edit me-2"></i>Editar horaris</a></li>
+                        <li><a class="dropdown-item" href="../Perfil/perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2 text-danger"></i>Tancar sessió</a></li>
+                        <li><a class="dropdown-item" href="../LoginRegistre/logout.php"><i class="fas fa-sign-out-alt me-2 text-danger"></i>Tancar sessió</a></li>
                     </ul>
                 </li>
             </ul>

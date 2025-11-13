@@ -1,5 +1,5 @@
 <?php
-include 'connexio.php';
+include __DIR__ . '/../BD/connexio.php';
 
 $error = null;
 $success = null;
@@ -50,6 +50,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3838550041681016"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registre — BlaBlaCash</title>

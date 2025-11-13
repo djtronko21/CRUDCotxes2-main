@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "connexio.php";
+require_once __DIR__ . '/../BD/connexio.php';
 
 header('Content-Type: application/json');
 

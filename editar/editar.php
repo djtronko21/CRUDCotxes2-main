@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once "connexio.php";
+require_once __DIR__ . '/../BD/connexio.php';
 
 if (!isset($_SESSION['usuari_id'])) {
-    header("Location: login.php");
+    header("Location: ../LoginRegistre/login.php");
     exit();
 }
 
@@ -53,6 +53,8 @@ $horarisResult = $horaris->get_result();
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3838550041681016"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Els meus Horaris — BlaBlaCash</title>
@@ -87,14 +89,14 @@ $horarisResult = $horaris->get_result();
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="principal.php"><i class="fas fa-car-side me-2"></i>BlaBlaCash</a>
+        <a class="navbar-brand" href="../Menu/principal.php"><i class="fas fa-car-side me-2"></i>BlaBlaCash</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse justify-content-end" id="navMenu">
             <ul class="navbar-nav">
-                <li class="nav-item"><a class="nav-link" href="principal.php"><i class="fas fa-home me-1"></i>Inici</a></li>
-                <li class="nav-item"><a class="nav-link" href="index.php"><i class="fas fa-search me-1"></i>Viatges</a></li>
+                <li class="nav-item"><a class="nav-link" href="../Menu/principal.php"><i class="fas fa-home me-1"></i>Inici</a></li>
+                <li class="nav-item"><a class="nav-link" href="../Menu/index.php"><i class="fas fa-search me-1"></i>Viatges</a></li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
                         <i class="fas fa-user-circle me-1"></i><?php echo htmlspecialchars($_SESSION['nom']); ?>
@@ -102,9 +104,9 @@ $horarisResult = $horaris->get_result();
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="afegir.php"><i class="fas fa-plus me-2"></i>Afegir horari</a></li>
                         <li><a class="dropdown-item active" href="editar.php"><i class="fas fa-edit me-2"></i>Editar horaris</a></li>
-                        <li><a class="dropdown-item" href="perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                        <li><a class="dropdown-item" href="../Perfil/perfil.php"><i class="fas fa-user me-2"></i>Perfil</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Tancar sessió</a></li>
+                        <li><a class="dropdown-item" href="../LoginRegistre/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Tancar sessió</a></li>
                     </ul>
                 </li>
             </ul>
@@ -167,7 +169,7 @@ $horarisResult = $horaris->get_result();
                         <?php endif; ?>
 
                         <div class="horari-actions">
-                            <a href="editar_horari.php?id=<?php echo $h['id']; ?>" class="btn btn-edit btn-sm text-white" <?php echo $esPassat ? 'disabled' : ''; ?>>
+                            <a href="modificar.php?id=<?php echo $h['id']; ?>" class="btn btn-edit btn-sm text-white" <?php echo $esPassat ? 'disabled' : ''; ?>>
                                 <i class="fas fa-edit me-1"></i>Editar
                             </a>
                             <a href="editar.php?delete=<?php echo $h['id']; ?>&confirm=yes" class="btn btn-delete btn-sm text-white" onclick="return confirm('Segur que vols eliminar aquest horari?')">

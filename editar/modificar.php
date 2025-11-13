@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once "connexio.php";
+require_once __DIR__ . '/../BD/connexio.php';
 
 if (!isset($_SESSION['usuari_id'])) {
-    header("Location: login.php");
+    header("Location: ../LoginRegistre/login.php");
     exit();
 }
 
@@ -88,6 +88,8 @@ $cotxesResult = $cotxes->get_result();
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3838550041681016"
+     crossorigin="anonymous"></script>
     <meta charset="UTF-8">
     <title>Modificar Viatge</title>
     <link rel="stylesheet" href="css/estilo.css">
@@ -184,7 +186,7 @@ $cotxesResult = $cotxes->get_result();
 <body>
     <header class="main-header">
         <div class="logo">
-            <a href="index.php">BlaBlaCash</a>
+            <a href="../Menu/index.php">BlaBlaCash</a>
         </div>
     </header>
 
